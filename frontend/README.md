@@ -1,56 +1,71 @@
-# Welcome to your Expo app 👋
+# checador-movil (frontend)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App movil Expo/React Native (SDK 57) del sistema **Checador Smart Display / TV**.
+Identifica al empleado por su numero, valida su identidad con biometria del
+**telefono** (huella/rostro vía `expo-local-authentication`) y registra
+entrada/salida contra la nube (backend + MySQL `checador_db`).
 
-## Get started
+## Requisitos
 
-1. Install dependencies
+- Node.js >= 22 (ver AGENTS.md)
+- Expo Go (Android/iOS) o `npx expo start --web`
 
-   ```bash
-   npm install
-   ```
+## Instalacion y ejecucion
 
-2. Start the app
+    npm install
+    npx expo start
 
-   ```bash
-   npx expo start
-   ```
+Para abrir en el telefono escanea el QR con **Expo Go** (misma red Wi-Fi).
+Para web, presiona `w`.
 
-In the output, you'll find options to open the app in a
+## Servidor (URL de la API)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+La URL del backend se define en el archivo **`.env`** del frontend (copiando
+`.env.example`):
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+    EXPO_PUBLIC_API_URL=http://192.168.1.100:4000
 
-## Get a fresh project
+- En el telefono (Expo Go) usa la **IP LAN** de tu computadora, NO `localhost`.
+- En web / emulador puede quedar `http://localhost:4000`.
+- El backend usa MySQL local en `localhost:3306` (ver `backend/.env`).
 
-When you're ready, run:
+## Biometria
 
-```bash
-npm run reset-project
-```
+La verificacion la realiza el sistema operativo del dispositivo (biometria en
+Android; FaceID/TouchID en iOS). Si el dispositivo no tiene biometria registrada
+(o en web/emulador), la app usa un **modo simulado** claramente indicado.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> Nota: FaceID requiere un development build (Expo Go no lo soporta en iOS).
 
-### Other setup steps
+## Estructura
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+    src/app/
+       _layout.tsx            Rutas protegidas (Stack.Protected) + providers
+       sign-in.tsx            Identifica empleado y verifica biometria
+       (app)/_layout.tsx      Pestanas nativas: Checar, Historial, Ajustes
+       (app)/_layout.web.tsx  Pestanas web (expo-router/ui)
+       (app)/index.tsx        Registrar entrada/salida segun estado del dia
+       (app)/history.tsx      Historial personal
+       (app)/settings.tsx     Preferencias biometricas y sesion
+    src/api/                  contrato + cliente HTTP
+    src/biometrics/           expo-local-authentication + tipos
+    src/state/                sesion y configuracion (expo-secure-store)
+    src/components/           UI reutilizable y verifier biometrico
+## Apartado de administracion
 
-## Learn more
+Cuando inicia sesion un **administrador** (pestana *Administrador* en `sign-in`),
+la app muestra un conjunto de pestanas exclusivo con las funciones de gestion
+que definen los stored procedures de `checador_db`:
 
-To learn more about developing your project with Expo, look at the following resources:
+- **Empleados** — listar/buscar, crear y editar empleados, activar/desactivar
+  (soft delete), cambiar contrasena y administrar **horarios** por empleado
+  (dia, entrada, salida y tolerancia).
+- **Organizacion** — CRUD de **departamentos** y de **administradores**
+  (crear, editar, cambiar contrasena, activar/desactivar).
+- **Reportes** — por fecha (tabla de checadas) y resumen
+  con totales, a tiempo, retardos y retardos de hoy.
+- **Ajustes** — compartido con el rol empleado.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Credenciales iniciales tras `npm run seed:hash`:
+`admin / 123123` para el administrador y `EMP001 / 123123` para los empleados
+(los inserts de `checador_db`).

@@ -1,0 +1,10 @@
+# Dependencias
+node_modules/
+
+# Backend
+backend/.env
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# macOS
+.DS_Store

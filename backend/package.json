@@ -1,0 +1,25 @@
+{
+  "name": "checador-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API REST (Node.js + Express + MySQL) para el sistema checador Smart Display / TV. Ejecuta los stored procedures de checador_db.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed:hash": "node src/scripts/hash-passwords.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "mysql2": "^3.24.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

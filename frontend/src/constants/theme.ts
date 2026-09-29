@@ -1,26 +1,48 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Paleta de la app (claro/oscuro). Incluye colores de marca y de estado de checada.
  */
 
 import '@/global.css';
 
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#0E141B',
+    background: '#F4F7FB',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#E7EDF6',
+    textSecondary: '#5A6474',
+    border: '#DDE4EE',
+    primary: '#1B6FE0',
+    onPrimary: '#FFFFFF',
+    success: '#1E9E56',
+    onSuccess: '#FFFFFF',
+    warning: '#D98A1B',
+    onWarning: '#FFFFFF',
+    danger: '#D23F3F',
+    onDanger: '#FFFFFF',
+    info: '#3156C4',
+    onInfo: '#FFFFFF',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F1F4F9',
+    background: '#0C0F14',
+    backgroundElement: '#161B23',
+    backgroundSelected: '#222A35',
+    textSecondary: '#A3ADBC',
+    border: '#2A323D',
+    primary: '#4C94F5',
+    onPrimary: '#06121F',
+    success: '#2FBF6B',
+    onSuccess: '#05150B',
+    warning: '#F0AB3E',
+    onWarning: '#1C1102',
+    danger: '#E05A5A',
+    onDanger: '#1C0505',
+    info: '#6C89F2',
+    onInfo: '#0A0F22',
   },
 } as const;
 
@@ -28,13 +50,9 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -60,6 +78,12 @@ export const Spacing = {
   five: 32,
   six: 64,
 } as const;
+
+/**
+ * Espaciado superior de las pantallas: barra de estado/notch del dispositivo
+ * (Constants.statusBarHeight en Expo Go / dispositivos) + margen base.
+ */
+export const TopInset = (Platform.OS === 'web' ? 0 : (Constants.statusBarHeight ?? 0)) + Spacing.six;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

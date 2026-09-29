@@ -5,10 +5,14 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "checadormovil",
+    "scheme": "checador-movil",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "checador-movil usa la camara para el reconocimiento facial y para adjuntar una foto a tu checada.",
+        "NSFaceIDUsageDescription": "checador-movil usa Face ID para autenticar tu identidad al registrar tu entrada o salida."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +36,21 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "checador-movil usa la camara para el reconocimiento facial y para adjuntar fotos a las checadas."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "checador-movil usa Face ID para autenticar tu identidad al checar."
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

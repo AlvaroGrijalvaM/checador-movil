@@ -1,0 +1,279 @@
+/* ============================================================
+   SCRIPT DE INSERTS DE PRUEBA - checador_db
+   ============================================================
+
+   OBJETIVO:
+
+       Poblar la base de datos (vacía) con datos suficientes
+       para probar la Smart TV, verificando que:
+
+           - Solo se muestren empleados con estado = 'RETARDO'
+             en sp_retardos_hoy().
+
+       Para cada día, desde HOY (jueves 24-sep-2026) hasta el
+       martes de la siguiente semana (martes 29-sep-2026),
+       habrá:
+
+           - 5 empleados que llegan A_TIEMPO   (mínimo 3 pedidos)
+           - 5 empleados que llegan con RETARDO (mínimo 3 pedidos)
+
+   RANGO DE FECHAS CUBIERTO:
+
+       Jueves    24-sep-2026
+       Viernes   25-sep-2026
+       Sábado    26-sep-2026
+       Domingo   27-sep-2026
+       Lunes     28-sep-2026
+       Martes    29-sep-2026
+
+   IMPORTANTE:
+
+       1. Este script hace INSERT directos a las tablas
+          (empleados, horarios, checadas), NO usa los
+          stored procedures, porque los procedures de
+          checadas usan NOW() y no permiten "fabricar"
+          fechas pasadas/futuras para pruebas.
+
+       2. El password_hash usado aquí es un valor de
+          PRUEBA (placeholder). NO sirve para iniciar
+          sesión real. En producción, Node.js debe generar
+          el hash real con bcrypt/Argon2.
+
+       3. Se asume que la base ya existe (checador_db) y que
+          ya se ejecutó el script de creación de tablas y
+          procedures, y que las tablas están vacías
+          (AUTO_INCREMENT en 1).
+
+       4. El horario de todos los empleados de prueba es:
+
+              Entrada:     08:00:00
+              Salida:      17:00:00
+              Tolerancia:  10 minutos
+
+          Por lo tanto, cualquier entrada hasta las 08:10:00
+          se considera A_TIEMPO, y después de esa hora es
+          RETARDO. Los horarios de prueba están configurados
+          para los 7 días de la semana.
+
+   ============================================================ */
+
+
+USE checador_db;
+
+
+/* ============================================================
+   1. DEPARTAMENTOS
+   ============================================================ */
+
+INSERT INTO departamentos (nombre_departamento, descripcion) VALUES
+('Sistemas',            'Área de tecnología e infraestructura'),
+('Recursos Humanos',    'Área de gestión de personal'),
+('Ventas',              'Área comercial y atención a clientes');
+
+-- id_departamento generados: 1 = Sistemas, 2 = RH, 3 = Ventas
+
+
+/* ============================================================
+   2. EMPLEADOS
+
+   Grupo A (id 1-5)  -> SIEMPRE LLEGAN A TIEMPO
+   Grupo B (id 6-10) -> SIEMPRE LLEGAN CON RETARDO
+
+   numero_empleado se asigna manualmente con el mismo formato
+   que genera sp_crear_empleado (EMP + id con 3 dígitos), ya
+   que en una BD recién creada los id_empleado serán 1..10.
+   ============================================================ */
+
+INSERT INTO empleados (
+    numero_empleado, nombre, apellido_paterno, apellido_materno,
+    id_departamento, password_hash, foto_url, activo, fecha_ingreso
+) VALUES
+-- Grupo A: puntuales
+('EMP001', 'Ana',    'García',    'López',    1, '123123', NULL, TRUE, '2023-01-15'),
+('EMP002', 'Luis',   'Martínez',  'Sánchez',  1, 'asdasd', NULL, TRUE, '2023-02-10'),
+('EMP003', 'Marta',  'Rodríguez', 'Pérez',    2, '123123', NULL, TRUE, '2023-03-05'),
+('EMP004', 'Jorge',  'Hernández', 'Cruz',     2, 'qweqwe', NULL, TRUE, '2023-04-20'),
+('EMP005', 'Paola',  'Jiménez',   'Torres',   3, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0005', NULL, TRUE, '2023-05-11'),
+
+-- Grupo B: retardados
+('EMP006', 'Carlos', 'Ramírez',   'Flores',   1, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0006', NULL, TRUE, '2023-06-01'),
+('EMP007', 'Sofía',  'Morales',   'Vega',     1, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0007', NULL, TRUE, '2023-06-15'),
+('EMP008', 'Ricardo','Castillo',  'Ortiz',    2, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0008', NULL, TRUE, '2023-07-01'),
+('EMP009', 'Elena',  'Vargas',    'Medina',   2, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0009', NULL, TRUE, '2023-08-01'),
+('EMP010', 'Miguel', 'Reyes',     'Soto',     3, '$2b$10$PLACEHOLDER.HASH.DE.PRUEBA.0010', NULL, TRUE, '2023-09-01');
+
+
+/* ============================================================
+   3. HORARIOS
+
+   Se agrega horario de Lunes a Domingo (1 a 7) para los
+   10 empleados, todos con:
+
+       08:00 - 17:00, tolerancia 10 minutos
+
+   Esto cubre cualquier día en el que se generen checadas.
+   ============================================================ */
+
+INSERT INTO horarios (id_empleado, dia_semana, hora_entrada, hora_salida, tolerancia_minutos)
+SELECT e.id_empleado, d.dia, '08:00:00', '17:00:00', 10
+FROM empleados e
+CROSS JOIN (
+    SELECT 1 AS dia UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL
+    SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+) d
+WHERE e.id_empleado BETWEEN 1 AND 10;
+
+
+/* ============================================================
+   4. CHECADAS
+
+   Un bloque por día. Cada bloque inserta:
+
+       - 5 checadas A_TIEMPO   (empleados 1-5)
+       - 5 checadas RETARDO    (empleados 6-10)
+
+   Días cubiertos:
+       24-sep-2026 (jueves)
+       25-sep-2026 (viernes)
+       26-sep-2026 (sábado)
+       27-sep-2026 (domingo)
+       28-sep-2026 (lunes)
+       29-sep-2026 (martes)
+   ============================================================ */
+
+-- ---------- JUEVES 24-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-24 07:52:00', '2026-09-24 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-24 07:58:00', '2026-09-24 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-24 08:00:00', '2026-09-24 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-24 08:04:00', '2026-09-24 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-24 08:09:00', '2026-09-24 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-24 08:15:00', '2026-09-24 17:30:00', 'RETARDO'),
+(7,  '2026-09-24 08:25:00', '2026-09-24 17:35:00', 'RETARDO'),
+(8,  '2026-09-24 08:40:00', '2026-09-24 17:40:00', 'RETARDO'),
+(9,  '2026-09-24 08:55:00', '2026-09-24 17:45:00', 'RETARDO'),
+(10, '2026-09-24 09:10:00', '2026-09-24 17:50:00', 'RETARDO');
+
+-- ---------- VIERNES 25-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-25 07:52:00', '2026-09-25 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-25 07:58:00', '2026-09-25 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-25 08:00:00', '2026-09-25 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-25 08:04:00', '2026-09-25 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-25 08:09:00', '2026-09-25 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-25 08:15:00', '2026-09-25 17:30:00', 'RETARDO'),
+(7,  '2026-09-25 08:25:00', '2026-09-25 17:35:00', 'RETARDO'),
+(8,  '2026-09-25 08:40:00', '2026-09-25 17:40:00', 'RETARDO'),
+(9,  '2026-09-25 08:55:00', '2026-09-25 17:45:00', 'RETARDO'),
+(10, '2026-09-25 09:10:00', '2026-09-25 17:50:00', 'RETARDO');
+
+-- ---------- SÁBADO 26-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-26 07:52:00', '2026-09-26 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-26 07:58:00', '2026-09-26 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-26 08:00:00', '2026-09-26 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-26 08:04:00', '2026-09-26 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-26 08:09:00', '2026-09-26 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-26 08:15:00', '2026-09-26 17:30:00', 'RETARDO'),
+(7,  '2026-09-26 08:25:00', '2026-09-26 17:35:00', 'RETARDO'),
+(8,  '2026-09-26 08:40:00', '2026-09-26 17:40:00', 'RETARDO'),
+(9,  '2026-09-26 08:55:00', '2026-09-26 17:45:00', 'RETARDO'),
+(10, '2026-09-26 09:10:00', '2026-09-26 17:50:00', 'RETARDO');
+
+-- ---------- DOMINGO 27-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-27 07:52:00', '2026-09-27 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-27 07:58:00', '2026-09-27 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-27 08:00:00', '2026-09-27 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-27 08:04:00', '2026-09-27 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-27 08:09:00', '2026-09-27 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-27 08:15:00', '2026-09-27 17:30:00', 'RETARDO'),
+(7,  '2026-09-27 08:25:00', '2026-09-27 17:35:00', 'RETARDO'),
+(8,  '2026-09-27 08:40:00', '2026-09-27 17:40:00', 'RETARDO'),
+(9,  '2026-09-27 08:55:00', '2026-09-27 17:45:00', 'RETARDO'),
+(10, '2026-09-27 09:10:00', '2026-09-27 17:50:00', 'RETARDO');
+
+-- ---------- LUNES 28-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-28 07:52:00', '2026-09-28 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-28 07:58:00', '2026-09-28 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-28 08:00:00', '2026-09-28 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-28 08:04:00', '2026-09-28 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-28 08:09:00', '2026-09-28 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-28 08:15:00', '2026-09-28 17:30:00', 'RETARDO'),
+(7,  '2026-09-28 08:25:00', '2026-09-28 17:35:00', 'RETARDO'),
+(8,  '2026-09-28 08:40:00', '2026-09-28 17:40:00', 'RETARDO'),
+(9,  '2026-09-28 08:55:00', '2026-09-28 17:45:00', 'RETARDO'),
+(10, '2026-09-28 09:10:00', '2026-09-28 17:50:00', 'RETARDO');
+
+-- ---------- MARTES 29-SEP-2026 ----------
+INSERT INTO checadas (id_empleado, fecha_entrada, fecha_salida, estado) VALUES
+(1,  '2026-09-29 07:52:00', '2026-09-29 17:05:00', 'A_TIEMPO'),
+(2,  '2026-09-29 07:58:00', '2026-09-29 17:10:00', 'A_TIEMPO'),
+(3,  '2026-09-29 08:00:00', '2026-09-29 17:00:00', 'A_TIEMPO'),
+(4,  '2026-09-29 08:04:00', '2026-09-29 17:15:00', 'A_TIEMPO'),
+(5,  '2026-09-29 08:09:00', '2026-09-29 17:20:00', 'A_TIEMPO'),
+(6,  '2026-09-29 08:15:00', '2026-09-29 17:30:00', 'RETARDO'),
+(7,  '2026-09-29 08:25:00', '2026-09-29 17:35:00', 'RETARDO'),
+(8,  '2026-09-29 08:40:00', '2026-09-29 17:40:00', 'RETARDO'),
+(9,  '2026-09-29 08:55:00', '2026-09-29 17:45:00', 'RETARDO'),
+(10, '2026-09-29 09:10:00', '2026-09-29 17:50:00', 'RETARDO');
+
+
+/* ============================================================
+   5. VERIFICACIÓN RÁPIDA
+   ============================================================
+
+   Descomenta para revisar rápidamente que cada día tenga
+   al menos 3 RETARDO y 3 A_TIEMPO:
+
+   SELECT
+       DATE(fecha_entrada) AS dia,
+       estado,
+       COUNT(*) AS total
+   FROM checadas
+   GROUP BY DATE(fecha_entrada), estado
+   ORDER BY dia, estado;
+
+   Para probar directamente lo que vería la Smart TV hoy:
+
+   CALL sp_retardos_hoy();
+
+   NOTA: sp_retardos_hoy() y sp_checadas_tv_hoy() usan
+   CURDATE(), así que solo mostrarán datos del día en que
+   ejecutes la consulta. Si hoy es 24-sep-2026, mostrará los
+   10 registros de esa fecha (5 RETARDO). Para ver los demás
+   días, usa sp_reporte_fecha(p_id_admin, 'YYYY-MM-DD') con
+   un administrador válido, o consulta directamente la tabla
+   checadas filtrando por fecha.
+
+   ============================================================ */
+   
+   
+-- ============================================================
+-- 1. ADMINISTRADORES
+-- ============================================================
+-- password_hash debe ser un hash generado con bcrypt.
+--
+-- Ejemplo:
+-- contraseña real: Admin123
+-- hash: REEMPLAZAR_POR_HASH_BCRYPT
+--
+-- El backend será responsable de comparar la contraseña
+-- proporcionada con este hash.
+-- ============================================================
+
+INSERT INTO admin (
+    usuario,
+    password_hash,
+    nombre,
+    activo
+)
+VALUES
+(
+    'admin',
+    '123',
+    'Administrador Principal',
+    TRUE
+);
+
